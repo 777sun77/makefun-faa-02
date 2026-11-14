@@ -9,8 +9,10 @@ OUTPUT_DIR = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
 QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.95)
 Z = (-1.644854, -0.674490, 0.0, 0.674490, 1.644854)
 BASE_SIGMA = 0.0025
-LOCAL_WEIGHT = 0.005
-SPREAD_MULTIPLIER = 1.3
+LOCAL_WEIGHT = 0.10
+SPREAD_MULTIPLIER = 0.8
+HORIZON_EXPONENT = 0.35
+ANCHOR_WINDOW = 10
 
 
 def price(value):
@@ -18,7 +20,7 @@ def price(value):
 
 
 def deviation(prices):
-    window = prices[-1440:]
+    window = prices[-240:]
     changes = [b - a for a, b in zip(window, window[1:])]
     if len(changes) < 30:
         return BASE_SIGMA
@@ -33,12 +35,12 @@ def forecast(market, horizon):
     prices = market["prices"]
     if not prices:
         raise ValueError("market has no prices")
-    last = prices[-1]
+    anchor = sum(prices[-ANCHOR_WINDOW:]) / min(len(prices), ANCHOR_WINDOW)
     sigma = deviation(prices)
     rows = []
     for h in range(1, horizon + 1):
-        spread = SPREAD_MULTIPLIER * sigma * math.sqrt(h)
-        rows.append([round(price(last + z * spread), 6) for z in Z])
+        spread = SPREAD_MULTIPLIER * sigma * h ** HORIZON_EXPONENT
+        rows.append([round(price(anchor + z * spread), 6) for z in Z])
     return rows
 
 
